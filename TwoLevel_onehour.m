@@ -20,9 +20,11 @@ classdef TwoLevel_onehour < handle
         MA;
         MB;
         MC;
-        PVa=1;
-        PVb=1;
-        PVc=1;
+
+        PVa=1;PVb=1;PVc=1;
+
+        PB=[0,0,0];
+
         %for mu 
         beta1=0.5;kmaxM=30;
         %for lambda
@@ -54,7 +56,7 @@ classdef TwoLevel_onehour < handle
                 lambdaold=obj.Lambda;
                 obj.UpdateLambda();
 
-                err1=norm(obj.PowerDemand-obj.PowerSupply);
+                err1=norm(obj.PowerDemand-obj.PowerSupply+obj.PB);
                 err2=norm(obj.Lambda-lambdaold);                
                 disp([err1,err2])
                 if err1<1e-3 && err2 <1e-3
@@ -138,7 +140,7 @@ classdef TwoLevel_onehour < handle
         end
         
         function UpdateLambda(obj)
-            obj.Lambda=obj.Lambda+obj.beta2*(obj.PowerDemand-obj.PowerSupply);
+            obj.Lambda=obj.Lambda+obj.beta2*(obj.PowerDemand-obj.PowerSupply+obj.PB);
         end
 
         function CalculateTotalCost(obj)
