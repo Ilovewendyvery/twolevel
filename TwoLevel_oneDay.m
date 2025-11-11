@@ -78,18 +78,18 @@ classdef TwoLevel_oneDay < handle
             end
         end
         function showCombined(obj)
-            % 显示六个子图的综合功率传输情况
-            figure('Position', [100, 100, 1600, 1000], 'Color', 'white')  % 创建大图形窗口
+            % Display comprehensive power transfer situation of six subplots
+            figure('Position', [100, 100, 1600, 1000], 'Color', 'white')  % Create large figure window
 
-            % 定义颜色方案 - 使用更专业的颜色
-            colors = [0.2, 0.4, 0.8;    % 蓝色 - 微网a
-                0.8, 0.2, 0.2;    % 红色 - 微网b
-                0.2, 0.7, 0.3];   % 绿色 - 微网c
+            % Define color scheme - using more professional colors
+            colors = [0.2, 0.4, 0.8;    % Blue - Microgrid a
+                0.8, 0.2, 0.2;    % Red - Microgrid b
+                0.2, 0.7, 0.3];   % Green - Microgrid c
 
             lineStyles = {'-', '--', ':'};
             lineWidth = 2;
 
-            % 子图1: 三个微网间功率传输
+            % Subplot 1: Power transfer between three microgrids
             subplot(4, 2, 1)
             x = 1:obj.NT;
 
@@ -102,15 +102,15 @@ classdef TwoLevel_oneDay < handle
                 'LineWidth', lineWidth, 'Marker', 'none');
             hold off
 
-            xlabel('时间步', 'FontSize', 11, 'FontWeight', 'normal')
-            ylabel('传输功率 (kW)', 'FontSize', 11, 'FontWeight', 'normal')
-            title('(a) 微网间功率传输', 'FontSize', 12, 'FontWeight', 'bold')
-            legend([h1, h2, h3], {'微网a→b', '微网a→c', '微网b→c'}, ...
+            xlabel('Time Step', 'FontSize', 11, 'FontWeight', 'normal')
+            ylabel('Transfer Power (kW)', 'FontSize', 11, 'FontWeight', 'normal')
+            title('(a) Inter-microgrid Power Transfer', 'FontSize', 12, 'FontWeight', 'bold')
+            legend([h1, h2, h3], {'MG a→b', 'MG a→c', 'MG b→c'}, ...
                 'Location', 'best', 'FontSize', 9, 'Box', 'off')
             %grid on
             set(gca, 'GridAlpha', 0.3, 'GridLineStyle', '--')
 
-            % 子图2: 三个微网电价变化
+            % Subplot 2: Electricity price changes in three microgrids
             subplot(4, 2, 2)
             h1 = plot(x, obj.LambdaDay(:,1), 'Color', colors(1,:), 'LineStyle', lineStyles{1}, ...
                 'LineWidth', lineWidth, 'Marker', 'none');
@@ -121,15 +121,15 @@ classdef TwoLevel_oneDay < handle
                 'LineWidth', lineWidth, 'Marker', 'none');
             hold off
 
-            xlabel('时间步', 'FontSize', 11, 'FontWeight', 'normal')
-            ylabel('电价 (元/kWh)', 'FontSize', 11, 'FontWeight', 'normal')
-            title('(b) 各微网内部电价变化', 'FontSize', 12, 'FontWeight', 'bold')
-            legend([h1, h2, h3], {'微网a', '微网b', '微网c'}, ...
+            xlabel('Time Step', 'FontSize', 11, 'FontWeight', 'normal')
+            ylabel('Price (Yuan/kWh)', 'FontSize', 11, 'FontWeight', 'normal')
+            title('(b) Internal Electricity Price Changes', 'FontSize', 12, 'FontWeight', 'bold')
+            legend([h1, h2, h3], {'MG a', 'MG b', 'MG c'}, ...
                 'Location', 'best', 'FontSize', 9, 'Box', 'off')
             grid on
             set(gca, 'GridAlpha', 0.3, 'GridLineStyle', '--')
 
-            % 子图3: 三个微网买电功率
+            % Subplot 3: Power purchase from grid for three microgrids
             subplot(4, 2, 3)
             h1 = plot(x, obj.PowerGrid(:,1), 'Color', colors(1,:), 'LineStyle', lineStyles{1}, ...
                 'LineWidth', lineWidth, 'Marker', 'none');
@@ -140,15 +140,15 @@ classdef TwoLevel_oneDay < handle
                 'LineWidth', lineWidth, 'Marker', 'none');
             hold off
 
-            xlabel('时间步', 'FontSize', 11, 'FontWeight', 'normal')
-            ylabel('买电功率 (kW)', 'FontSize', 11, 'FontWeight', 'normal')
-            title('(c) 微网单独买电功率', 'FontSize', 12, 'FontWeight', 'bold')
-            legend([h1, h2, h3], {'微网a', '微网b', '微网c'}, ...
+            xlabel('Time Step', 'FontSize', 11, 'FontWeight', 'normal')
+            ylabel('Grid Purchase Power (kW)', 'FontSize', 11, 'FontWeight', 'normal')
+            title('(c) Individual Grid Purchase Power', 'FontSize', 12, 'FontWeight', 'bold')
+            legend([h1, h2, h3], {'MG a', 'MG b', 'MG c'}, ...
                 'Location', 'best', 'FontSize', 9, 'Box', 'off')
             %grid on
             set(gca, 'GridAlpha', 0.3, 'GridLineStyle', '--')
 
-            % 子图4: 三个微网发电功率
+            % Subplot 4: Power generation in three microgrids
             subplot(4, 2, 4)
             h1 = plot(x, obj.PVa, 'Color', colors(1,:), 'LineStyle', lineStyles{1}, ...
                 'LineWidth', lineWidth, 'Marker', 'none');
@@ -159,15 +159,15 @@ classdef TwoLevel_oneDay < handle
                 'LineWidth', lineWidth, 'Marker', 'none');
             hold off
 
-            xlabel('时间步', 'FontSize', 11, 'FontWeight', 'normal')
-            ylabel('发电功率 (kW)', 'FontSize', 11, 'FontWeight', 'normal')
-            title('(d) 各微网PV发电功率', 'FontSize', 12, 'FontWeight', 'bold')
-            legend([h1, h2, h3], {'微网a', '微网b', '微网c'}, ...
+            xlabel('Time Step', 'FontSize', 11, 'FontWeight', 'normal')
+            ylabel('Generation Power (kW)', 'FontSize', 11, 'FontWeight', 'normal')
+            title('(d) PV Generation Power', 'FontSize', 12, 'FontWeight', 'bold')
+            legend([h1, h2, h3], {'MG a', 'MG b', 'MG c'}, ...
                 'Location', 'best', 'FontSize', 9, 'Box', 'off')
             %grid on
             set(gca, 'GridAlpha', 0.3, 'GridLineStyle', '--')
 
-            % 子图5: 三个微网供给功率
+            % Subplot 5: Supply power in three microgrids
             subplot(4, 2, 5)
             h1 = plot(x, obj.PowerSupplyDay(:,1)-obj.PBDay(:,1), 'Color', colors(1,:), ...
                 'LineStyle', lineStyles{1}, 'LineWidth', lineWidth, 'Marker', 'none');
@@ -178,15 +178,15 @@ classdef TwoLevel_oneDay < handle
                 'LineStyle', lineStyles{3}, 'LineWidth', lineWidth, 'Marker', 'none');
             hold off
 
-            xlabel('时间步', 'FontSize', 11, 'FontWeight', 'normal')
-            ylabel('供给功率 (kW)', 'FontSize', 11, 'FontWeight', 'normal')
-            title('(e) 各微网虚拟代理商供给功率', 'FontSize', 12, 'FontWeight', 'bold')
-            legend([h1, h2, h3], {'微网a', '微网b', '微网c'}, ...
+            xlabel('Time Step', 'FontSize', 11, 'FontWeight', 'normal')
+            ylabel('Supply Power (kW)', 'FontSize', 11, 'FontWeight', 'normal')
+            title('(e) Virtual Agent Supply Power', 'FontSize', 12, 'FontWeight', 'bold')
+            legend([h1, h2, h3], {'MG a', 'MG b', 'MG c'}, ...
                 'Location', 'best', 'FontSize', 9, 'Box', 'off')
             %grid on
             set(gca, 'GridAlpha', 0.3, 'GridLineStyle', '--')
 
-            % 子图6: 需求功率
+            % Subplot 6: Demand power
             subplot(4, 2, 6)
             h1 = plot(x, obj.PowerDemandDay(:,1), 'Color', colors(1,:), 'LineStyle', lineStyles{1}, ...
                 'LineWidth', lineWidth, 'Marker', 'none');
@@ -197,15 +197,15 @@ classdef TwoLevel_oneDay < handle
                 'LineWidth', lineWidth, 'Marker', 'none');
             hold off
 
-            xlabel('时间步', 'FontSize', 11, 'FontWeight', 'normal')
-            ylabel('需求功率 (kW)', 'FontSize', 11, 'FontWeight', 'normal')
-            title('(f) 各微网用户总需求功率', 'FontSize', 12, 'FontWeight', 'bold')
-            legend([h1, h2, h3], {'微网a', '微网b', '微网c'}, ...
+            xlabel('Time Step', 'FontSize', 11, 'FontWeight', 'normal')
+            ylabel('Demand Power (kW)', 'FontSize', 11, 'FontWeight', 'normal')
+            title('(f) Total User Demand Power', 'FontSize', 12, 'FontWeight', 'bold')
+            legend([h1, h2, h3], {'MG a', 'MG b', 'MG c'}, ...
                 'Location', 'best', 'FontSize', 9, 'Box', 'off')
             %grid on
             set(gca, 'GridAlpha', 0.3, 'GridLineStyle', '--')
 
-            % 子图7: SOC状态
+            % Subplot 7: SOC status
             subplot(4, 2, 7)
             x_soc = 1:(obj.NT+1);
 
@@ -218,19 +218,19 @@ classdef TwoLevel_oneDay < handle
                 'LineWidth', lineWidth, 'Marker', '^', 'MarkerSize', 3, 'MarkerFaceColor', colors(3,:));
             hold off
 
-            xlabel('时间步', 'FontSize', 11, 'FontWeight', 'normal')
+            xlabel('Time Step', 'FontSize', 11, 'FontWeight', 'normal')
             ylabel('SOC', 'FontSize', 11, 'FontWeight', 'normal')
-            title('(g) 各微网储能SOC状态', 'FontSize', 12, 'FontWeight', 'bold')
-            legend([h1, h2, h3], {'微网a', '微网b', '微网c'}, ...
+            title('(g) Energy Storage SOC Status', 'FontSize', 12, 'FontWeight', 'bold')
+            legend([h1, h2, h3], {'MG a', 'MG b', 'MG c'}, ...
                 'Location', 'best', 'FontSize', 9, 'Box', 'off')
             %grid on
             set(gca, 'GridAlpha', 0.3, 'GridLineStyle', '--')
-            ylim([0, 1])  % SOC通常显示在0-1范围内
+            ylim([0, 1])  % SOC typically displayed in 0-1 range
 
-            % 子图8: 充放功率 - 特别优化这个图
+            % Subplot 8: Charge/discharge power - specially optimized for this plot
             subplot(4, 2, 8)
 
-            % 使用stairs绘制，但改进样式
+            % Use stairs for plotting, but with improved style
             h1 = stairs(x, obj.PBDay(:,1), 'Color', colors(1,:), 'LineStyle', lineStyles{1}, ...
                 'LineWidth', lineWidth + 0.5);
             hold on
@@ -239,33 +239,31 @@ classdef TwoLevel_oneDay < handle
             h3 = stairs(x, obj.PBDay(:,3), 'Color', colors(3,:), 'LineStyle', lineStyles{3}, ...
                 'LineWidth', lineWidth + 0.5);
 
-            % 添加零线参考
+            % Add zero line reference
             yline(0, 'k--', 'LineWidth', 1, 'Alpha', 0.5);
 
             hold off
 
-            xlabel('时间步', 'FontSize', 11, 'FontWeight', 'normal')
-            ylabel('充放功率 (kW)', 'FontSize', 11, 'FontWeight', 'normal')
-            title('(h) 各微网储能充放功率', 'FontSize', 12, 'FontWeight', 'bold')
-            legend([h1, h2, h3], {'微网a', '微网b', '微网c'}, ...
+            xlabel('Time Step', 'FontSize', 11, 'FontWeight', 'normal')
+            ylabel('Charge/Discharge Power (kW)', 'FontSize', 11, 'FontWeight', 'normal')
+            title('(h) Energy Storage Charge/Discharge Power', 'FontSize', 12, 'FontWeight', 'bold')
+            legend([h1, h2, h3], {'MG a', 'MG b', 'MG c'}, ...
                 'Location', 'best', 'FontSize', 9, 'Box', 'off')
             %grid on
             set(gca, 'GridAlpha', 0.3, 'GridLineStyle', '--')
 
-            
-
-            % 添加总标题
-            sgtitle('多微网能源系统运行状态综合分析', 'FontSize', 18, 'FontWeight', 'bold', ...
+            % Add overall title
+            sgtitle('Comprehensive Analysis of Multi-Microgrid Energy System Operation', 'FontSize', 18, 'FontWeight', 'bold', ...
                 'Color', [0.1, 0.2, 0.4])
 
-            % 统一调整所有子图
+            % Uniformly adjust all subplots
             allAxes = findobj(gcf, 'Type', 'axes');
             for i = 1:length(allAxes)
                 set(allAxes(i), 'FontSize', 10, 'TickDir', 'out', ...
                     'Box', 'on', 'LineWidth', 0.5);
             end
 
-            % 调整子图间距
+            % Adjust subplot spacing
             set(gcf, 'Color', 'white');
             drawnow;
         end
