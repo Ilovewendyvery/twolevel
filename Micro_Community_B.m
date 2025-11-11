@@ -16,7 +16,7 @@ classdef Micro_Community_B
             f = @(x) 10*x.^2+1.*x;          
         end
         function f=Tran_function(obj)
-            f = @(x) 0.5.*x;          
+            f = @(x) 0*x;          
         end
     end
 end

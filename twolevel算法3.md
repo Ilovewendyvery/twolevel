@@ -16,18 +16,9 @@ $$
 
 #### 上层更新供给(Supply)功率：
 
-$$
-\min C(G_A)+C(G_B)+C(G_C)-[\lambda_A,\lambda_B,\lambda_C]
-\begin{bmatrix}
-G_A+PV_A-T_{A2B}-T_{A2C}\\
-G_B+PV_B+T_{A2B}-T_{B2C}\\
-G_C+PV_C+T_{A2C}+T_{B2C}
-\end{bmatrix}
-$$
-
 微网A:
 $$
-\min_{G_A,P_{A2B},P_{A2C}} C_{grid}(G_A)-C_{tran}(T_{A2B})-C_{tran}(T_{A2C})-\lambda_A(G_A+PV_A-T_{A2B}-T_{A2C})+[\mu_1,\mu_2] [T_{A2B};T_{A2C}]\\
+\min_{G_A,P_{A2B},P_{A2C}} {\color{red}C_{grid}(G_A)}-\lambda_A(G_A+PV_A-T_{A2B}-T_{A2C})+[\mu_1,\mu_2] [T_{A2B};T_{A2C}]+\alpha T_{A2B}^2+\alpha T_{A2C}^2\\
 s.t. G_A\in[0,D_{max}];\\
 T_{A2B}\in[-PV_{B},PV_{A}];\\
 T_{A2C}\in[-PV_{C},PV_{A}];\\
@@ -35,7 +26,7 @@ T_{A2B}+T_{A2C}\leq PV_A
 $$
 微网B:
 $$
-\min_{G_B,\bar{T}_{A2B},T_{B2C}} C_{grid}(G_B)+C_{tran}(\bar{T}_{A2B})-C_{tran}(T_{B2C})-\lambda_B(G_B+PV_B+\bar{T}_{A2B}-\bar{T}_{B2C})+[\mu_1,\mu_3] [-\bar{T}_{A2B},T_{B2C}]\\
+\min_{G_B,\bar{T}_{A2B},T_{B2C}} C_{grid}(G_B)-\lambda_B(G_B+PV_B+\bar{T}_{A2B}-\bar{T}_{B2C})+[\mu_1,\mu_3] [-\bar{T}_{A2B},T_{B2C}]+\alpha \bar{T}_{A2B}^2+\alpha T_{B2C}^2\\
 s.t. G_B\geq 0;\\
 \bar{T}_{A2B}\in[-PV_{B},PV_{A}];\\
 T_{B2C}\in[-PV_{C},PV_{B}];\\ 
@@ -43,7 +34,7 @@ T_{B2C}\in[-PV_{C},PV_{B}];\\
 $$
 微网C:
 $$
-\min_{G_C,\bar{T}_{A2C},\bar{T}_{B2C}} C_{grid}(G_C)+C_{tran}(\bar{T}_{A2C})+C_{tran}(\bar{T}_{B2C})-\lambda_C(G_C+PV_C+\bar{T}_{A2C}+\bar{T}_{B2C})+[\mu_2,\mu_3] [-\bar{T}_{A2C},-\bar{T}_{B2C}]\\
+\min_{G_C,\bar{T}_{A2C},\bar{T}_{B2C}} C_{grid}(G_C)-\lambda_C(G_C+PV_C+\bar{T}_{A2C}+\bar{T}_{B2C})+[\mu_2,\mu_3] [-\bar{T}_{A2C},-\bar{T}_{B2C}]+\alpha \bar{T}_{A2C}^2+\alpha \bar{T}_{B2C}^2\\
 s.t. G_C\geq 0;\\
 \bar{T}_{A2C}\in[-PV_{C},PV_{A}];\\ 
 \bar{T}_{B2C}\in[-PV_{C},PV_{B}];\\ 

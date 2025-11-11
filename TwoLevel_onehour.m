@@ -122,7 +122,7 @@ classdef TwoLevel_onehour < handle
                 
                 err1=norm([SA(2)-SB(2);SA(3)-SC(2);SB(3)-SC(3)]);
                 err2=norm(muold-mu0);               
-                disp(['error of mu :',num2str([SA(2),SA(3),SB(3)])])
+                disp(['mu :',num2str([SA(2),SA(3),SB(3)])])
                 if err1<1e-3 && err2 <1e-3
                     disp(k)
                     break;
