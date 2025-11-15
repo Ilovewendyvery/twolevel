@@ -26,9 +26,9 @@ classdef TwoLevel_onehour < handle
         PB=[0,0,0];
 
         %for mu 
-        beta1=0.5;kmaxM=30;
+        beta1=0.5;kmaxM=50;
         %for lambda
-        beta2=0.5;kmaxL=30;
+        beta2=0.5;kmaxL=50;
         %Cost of transmission
         CofT=0.5;
 
@@ -56,11 +56,11 @@ classdef TwoLevel_onehour < handle
                 lambdaold=obj.Lambda;
                 obj.UpdateLambda();
 
-                err1=norm(obj.PowerDemand-obj.PowerSupply+obj.PB);
-                err2=norm(obj.Lambda-lambdaold);                
-                disp([err1,err2])
+                err1=norm(obj.PowerDemand-obj.PowerSupply);
+                err2=norm(obj.Lambda-lambdaold); 
+                %disp(['lambda err:',num2str([err1,err2])])
                 if err1<1e-3 && err2 <1e-3
-                    disp(k)
+                    disp(['iter of lambda:',num2str(k)])
                     break;
                 end
             end
@@ -88,48 +88,47 @@ classdef TwoLevel_onehour < handle
 
                 CgridA =obj.MA.Grid_function(); 
                 CgridB =obj.MB.Grid_function(); 
-                CgridC =obj.MC.Grid_function();
-                Ctran =obj.MA.Tran_function();
+                CgridC =obj.MC.Grid_function(); 
             for k=1:obj.kmaxM
 
-                funA = @(x) CgridA(x(1))-Ctran(x(2))-Ctran(x(3))-obj.Lambda(1)*(x(1)+obj.PVa-x(2)-x(3))...
-                    +mu0(1)*x(2)+mu0(2)*x(3)+obj.CofT*(x(2))^2+obj.CofT*(x(3))^2;
-                lb=[0,-obj.PVb,-obj.PVc];
-                ub=[PDMA,obj.PVa,obj.PVa];
+                funA = @(x) CgridA(x(1))-obj.Lambda(1)*(x(1)+obj.PVa-x(2)-x(3)-obj.PB(1))...
+                    -mu0(1)*x(2)-mu0(2)*x(3)+obj.CofT*(x(2))^2+obj.CofT*(x(3))^2;
+                lb=[0,-obj.PVb-1,-obj.PVc-1];
+                ub=[PDMA,obj.PVa+1,obj.PVa+1];
                 A=[0,1,1];
                 b=obj.PVa;
                 [SA, ~] = fmincon(funA, SA, A, b, [], [], lb, ub, [],options);
 
              
-                funB = @(x) CgridB(x(1))+Ctran(x(2))-Ctran(x(3))-obj.Lambda(2)*(x(1)+obj.PVb+x(2)-x(3))...
-                    -mu0(1)*x(2)+mu0(3)*x(3)+obj.CofT*(x(2))^2+obj.CofT*(x(3))^2;
-                lb=[0,-obj.PVb,-obj.PVb];
-                ub=[PDMB,obj.PVa,obj.PVc];
+                funB = @(x) CgridB(x(1))-obj.Lambda(2)*(x(1)+obj.PVb+x(2)-x(3)-obj.PB(2))...
+                    +mu0(1)*x(2)-mu0(3)*x(3)+obj.CofT*(x(2))^2+obj.CofT*(x(3))^2;
+                lb=[0,-obj.PVb-1,-obj.PVb-1];
+                ub=[PDMB,obj.PVa+1,obj.PVc+1];
                 A=[0,-1,1];
                 b=obj.PVb;
                 [SB, ~] = fmincon(funB, SB, A, b, [], [], lb, ub, [],options);
 
-                funC = @(x) CgridC(x(1))+Ctran(x(2))+Ctran(x(3))-obj.Lambda(3)*(x(1)+obj.PVb+x(2)+x(3))...
-                    -mu0(2)*x(2)-mu0(3)*x(3)+obj.CofT*(x(2))^2+obj.CofT*(x(3))^2;
-                lb=[0,-obj.PVc,-obj.PVb];
-                ub=[PDMC,obj.PVa,obj.PVc];
+                funC = @(x) CgridC(x(1))-obj.Lambda(3)*(x(1)+obj.PVb+x(2)+x(3)-obj.PB(3))...
+                    +mu0(2)*x(2)+mu0(3)*x(3)+obj.CofT*(x(2))^2+obj.CofT*(x(3))^2;
+                lb=[0,-obj.PVc-1,-obj.PVb-1];
+                ub=[PDMC,obj.PVa+1,obj.PVc+1];
                 A=[0,-1,-1];
                 b=obj.PVc;
                 [SC, ~] = fmincon(funC, SC, A, b, [], [], lb, ub, [],options);
                 
                 muold=mu0;
-                mu0=mu0+obj.beta1*[SA(2)-SB(2);SA(3)-SC(2);SB(3)-SC(3)];
+                mu0=mu0-obj.beta1*[SA(2)-SB(2);SA(3)-SC(2);SB(3)-SC(3)];
                 
                 err1=norm([SA(2)-SB(2);SA(3)-SC(2);SB(3)-SC(3)]);
                 err2=norm(muold-mu0);               
-                disp(['mu :',num2str([SA(2),SA(3),SB(3)])])
+                %disp(['mu err:',num2str([err1,err2])])
                 if err1<1e-3 && err2 <1e-3
-                    disp(k)
+                    disp(['iter of mu:',num2str(k)])
                     break;
                 end
             end
 
-            obj.PowerSupply=[SA(1)+obj.PVa-SA(2)-SA(3),SB(1)+obj.PVb+SB(2)-SB(3),SC(1)+obj.PVc+SC(2)+SC(3)];
+            obj.PowerSupply=[SA(1)+obj.PVa-SA(2)-SA(3)-obj.PB(1),SB(1)+obj.PVb+SB(2)-SB(3)-obj.PB(2),SC(1)+obj.PVc+SC(2)+SC(3)-obj.PB(3)];
 
             %recode
             obj.PowerGrid=[SA(1),SB(1),SC(1)];
@@ -137,10 +136,11 @@ classdef TwoLevel_onehour < handle
             obj.Powertrana2c=[SA(3),SC(2)];
             obj.Powertranb2c=[SB(3),SC(3)];
             obj.mu=mu0;
+            % disp(['mu :',num2str(mu0')])
         end
         
         function UpdateLambda(obj)
-            obj.Lambda=obj.Lambda+obj.beta2*(obj.PowerDemand-obj.PowerSupply+obj.PB);
+            obj.Lambda=obj.Lambda+obj.beta2*(obj.PowerDemand-obj.PowerSupply);
         end
 
         function CalculateTotalCost(obj)

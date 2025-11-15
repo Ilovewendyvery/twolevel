@@ -3,7 +3,7 @@ classdef Micro_Community_A
     properties 
         Numbers_of_users=1; 
         PowerDemand_Max=40;
-        battery_capacity=20;
+        battery_capacity=10;
     end
 
     methods
