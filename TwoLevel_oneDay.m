@@ -6,7 +6,7 @@ classdef TwoLevel_oneDay < handle
         LambdaDay;       %[lambda1,lambda2,lambda3]*24
 
         %Adjustable parameters
-        NT=5;
+        NT=12;
         oneHour;
         PBDay;
         SOCDay;

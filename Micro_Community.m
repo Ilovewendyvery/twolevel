@@ -7,7 +7,7 @@ classdef Micro_Community
 
         Pmax;
         Gmax=40;
-        Tmax=0;
+        Tmax=5;
         Bmax=40;
         BC;
         SOC;

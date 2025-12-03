@@ -39,6 +39,7 @@ classdef TwoLevel_onehour < handle
         %show
         %Other intermediate variables
         TotalCost;
+        bool=1;
     end
 
     methods
@@ -50,7 +51,7 @@ classdef TwoLevel_onehour < handle
             obj.MC= MC; 
 
 
-            obj.lambda=[0,0,0]; 
+            obj.lambda=[1,1,1]; 
             obj.tDA=zeros(obj.MA.N,1);
             obj.tDB=zeros(obj.MB.N,1);
             obj.tSA=zeros(1,4);
@@ -59,7 +60,8 @@ classdef TwoLevel_onehour < handle
         end
 
         function Solve(obj,t)
-            obj.Lambda_convergence=0; 
+            obj.Lambda_convergence=0;
+             obj.lambda=[2,2,2]; 
             for k1=1:obj.kmaxL 
 
                 obj.UpdatePowerDemand(t); 
@@ -108,47 +110,63 @@ classdef TwoLevel_onehour < handle
         function UpdateLambda(obj,k)
             Lambda_old=obj.lambda;
             obj.lambda=obj.lambda+obj.pp.*(obj.tPowerDemand-obj.tPowerSupply); 
+            
+
+
+
             err1=norm(obj.tPowerDemand-obj.tPowerSupply);
             err2=norm(obj.lambda-Lambda_old);
-            for kk=1:3
-                if obj.lambda(kk) < 1
-                    obj.pp(kk)=max(0.6*obj.pp(kk),0.00001);
-                end
-                if obj.lambda(kk) > 1
-                    obj.pp(kk)=0.2;
-                end
-            end
+            % for kk=1:3
+            %     if obj.lambda(kk) < 0.5
+            %         obj.pp(kk)=max(0.6*obj.pp(kk),0.00001);
+            %     end
+            %     if obj.lambda(kk) > 1
+            %         obj.pp(kk)=0.2;
+            %     end
+            % end
 
             disp([obj.tPowerDemand;obj.tPowerSupply;obj.lambda])
             disp(obj.pp)
-            if err1<1e-2 && err2 <1e-2
+            if err1<1e-2 && err2 <1e-2&&k>1
                 disp(['iter of lambda====================================:',num2str(k)])
                 obj.Lambda_convergence=1;
             end
         end
     
         function UpdatePowerSupply(obj,t)
-            options = optimoptions('fmincon', 'Display', 'off'); 
+            options = optimoptions('fmincon', 'Display', 'off');  
+            if obj.lambda(1)<0.5
+                obj.tSA=[0,0,0,sum(obj.MA.D_it(:,t))-obj.MA.PV(t)];
+            else
             
             funA = @(x) obj.G_fun(x(1))-obj.lambda(1)*(x(1)+obj.MA.PV(t)-x(2)-x(3)+x(4))...
                        +obj.E_fun(x(4),obj.MA.SOC(t),-obj.MA.BC*(1-obj.MA.SOC(t)))-obj.tmu(1)*x(2)-obj.tmu(2)*x(3)+obj.CofT*(x(2))^2+obj.CofT*(x(3))^2;
-            lb=[0,-obj.MA.Tmax,-obj.MA.Tmax,-obj.MA.BC*(1-obj.MA.SOC(t))];
-            ub=[obj.MA.Gmax,obj.MA.Tmax,obj.MA.Tmax,obj.MA.BC*obj.MA.SOC(t)]; 
+            lb=[0,-obj.MA.Tmax,-obj.MA.Tmax,-obj.MA.BC*(1-obj.MA.SOC(t))*obj.bool];
+            ub=[obj.MA.Gmax,obj.MA.Tmax,obj.MA.Tmax,obj.MA.BC*obj.MA.SOC(t)*obj.bool]; 
             [obj.tSA, ~] = fmincon(funA, obj.tSA, [], [], [], [], lb, ub, [],options);
+            end
             
  
+            if obj.lambda(2)<0.5
+                obj.tSB=[0,0,0,sum(obj.MB.D_it(:,t))-obj.MB.PV(t)];
+            else
             funB = @(x) obj.G_fun(x(1))-obj.lambda(2)*(x(1)+obj.MB.PV(t)+x(2)-x(3)+x(4))...
                        +obj.E_fun(x(4),obj.MB.SOC(t),-obj.MB.BC*(1-obj.MB.SOC(t)))+obj.tmu(1)*x(2)-obj.tmu(3)*x(3)+obj.CofT*(x(2))^2+obj.CofT*(x(3))^2;
-            lb=[0,-obj.MB.Tmax,-obj.MB.Tmax,-obj.MB.BC*(1-obj.MB.SOC(t))];
-            ub=[obj.MB.Gmax,obj.MB.Tmax,obj.MB.Tmax,obj.MB.BC*obj.MB.SOC(t)];  
+            lb=[0,-obj.MB.Tmax,-obj.MB.Tmax,-obj.MB.BC*(1-obj.MB.SOC(t))*obj.bool];
+            ub=[obj.MB.Gmax,obj.MB.Tmax,obj.MB.Tmax,obj.MB.BC*obj.MB.SOC(t)*obj.bool];  
             [obj.tSB, ~] = fmincon(funB, obj.tSB, [], [], [], [], lb, ub, [],options);
+            end
 
 
+            if obj.lambda(3)<0.5
+                obj.tSC=[0,0,0,sum(obj.MC.D_it(:,t))-obj.MC.PV(t)];
+            else
             funC = @(x) obj.G_fun(x(1))-obj.lambda(3)*(x(1)+obj.MC.PV(t)+x(2)+x(3)+x(4))...
                 +obj.E_fun(x(4),obj.MC.SOC(t),-obj.MC.BC*(1-obj.MC.SOC(t)))+obj.tmu(2)*x(2)+obj.tmu(3)*x(3)+obj.CofT*(x(2))^2+obj.CofT*(x(3))^2;
-            lb=[0,-obj.MC.Tmax,-obj.MC.Tmax,-obj.MC.BC*(1-obj.MC.SOC(t))];
-            ub=[obj.MC.Gmax,obj.MC.Tmax,obj.MC.Tmax,obj.MC.BC*obj.MC.SOC(t)];
+            lb=[0,-obj.MC.Tmax,-obj.MC.Tmax,-obj.MC.BC*(1-obj.MC.SOC(t))*obj.bool];
+            ub=[obj.MC.Gmax,obj.MC.Tmax,obj.MC.Tmax,obj.MC.BC*obj.MC.SOC(t)*obj.bool];
             [obj.tSC, ~] = fmincon(funC, obj.tSC, [], [], [], [], lb, ub, [],options);
+            end
 
 
             obj.tPowerSupply=[obj.tSA(1)+obj.MA.PV(t)-obj.tSA(2)-obj.tSA(3)+obj.tSA(4),...
@@ -273,8 +291,8 @@ classdef TwoLevel_onehour < handle
         end
         function f=E_fun(x,SOC,nBmax)
             % %SOC=SOC0-x/E;
-            alpha=(1-SOC)/SOC*exp(4);
-            f =  alpha*(exp(x)-1).*(x <= 0) + (0.1*x.^2 + alpha*x).*(x > 0);  
+            alpha=(1-SOC)/SOC*exp(3)*0.1;
+            f =  alpha*(exp(x)-1).*(x <= 0) + (0.01*x.^2 + alpha*x).*(x > 0);  
             % f=-1/(2*nBmax)*x.*(x-2*nBmax);
         end  
     end
