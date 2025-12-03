@@ -6,11 +6,8 @@ classdef TwoLevel_oneDay < handle
         LambdaDay;       %[lambda1,lambda2,lambda3]*24
 
         %Adjustable parameters
-        NT=10;
+        NT=5;
         oneHour;
-        PVa;
-        PVb;
-        PVc;
         PBDay;
         SOCDay;
 
@@ -29,54 +26,41 @@ classdef TwoLevel_oneDay < handle
             obj.PowerDemandDay=zeros(obj.NT,3);
             obj.PowerSupplyDay=zeros(obj.NT,3);
             obj.LambdaDay=zeros(obj.NT,3);
-            obj.mu=zeros(obj.NT,3);
+            obj.mu=zeros(obj.NT,3); 
 
-            xT=linspace(0,2*pi,obj.NT);
-            obj.PVa=1*(sin(xT)+1);
-            obj.PVb=1*(cos(xT)+1);
-            obj.PVc=1*(cos(xT+pi/6)+1);
-
-            obj.oneHour = TwoLevel_onehour();
+            obj.oneHour = TwoLevel_onehour(obj.NT);
             obj.SOCDay=zeros(obj.NT+1,3);obj.SOCDay(1,:)=zeros(1,3)+0.5;
             Solve_OneDay(obj);
         end
 
         function Solve_OneDay(obj)
-            for k=1:obj.NT
-                %Update photovoltaic power generation capacity
-                obj.oneHour.PVa=obj.PVa(k);
-                obj.oneHour.PVb=obj.PVb(k);
-                obj.oneHour.PVc=obj.PVc(k);
+            for k=1:obj.NT 
+                obj.oneHour.Solve(k); 
 
-                obj.oneHour.Solve();
+                obj.PowerDemandDay(k,:)=[sum(obj.oneHour.tDA), sum(obj.oneHour.tDB), sum(obj.oneHour.tDC)];
+                S = [obj.oneHour.tSA(1) + obj.oneHour.MA.PV(k) - obj.oneHour.tSA(2) - obj.oneHour.tSA(3) + obj.oneHour.tSA(4), ...
+                obj.oneHour.tSB(1) + obj.oneHour.MB.PV(k) + obj.oneHour.tSB(2) - obj.oneHour.tSB(3) + obj.oneHour.tSB(4), ...
+                obj.oneHour.tSC(1) + obj.oneHour.MC.PV(k) + obj.oneHour.tSC(2) + obj.oneHour.tSC(3) + obj.oneHour.tSC(4)];
 
-                for kk=1:3
-                    if obj.oneHour.Lambda(kk)>5
-                        obj.oneHour.PB(kk)=-0.25;
-                    elseif obj.oneHour.Lambda(kk)<4.5
-                        obj.oneHour.PB(kk)=0.25;
-                    end
-                end
-                obj.oneHour.Solve();
-
-
-                obj.PowerDemandDay(k,:)=obj.oneHour.PowerDemand;
-                obj.PowerSupplyDay(k,:)=obj.oneHour.PowerSupply;
-                obj.LambdaDay(k,:)=obj.oneHour.Lambda;
-                obj.mu(k,:)=obj.oneHour.mu;
-                obj.Powertrana2b(k,:)=obj.oneHour.Powertrana2b;
-                obj.Powertrana2c(k,:)=obj.oneHour.Powertrana2c;
-                obj.Powertranb2c(k,:)=obj.oneHour.Powertranb2c;
+                obj.PowerSupplyDay(k,:)=S;
+                obj.LambdaDay(k,:)=obj.oneHour.lambda;
+                obj.mu(k,:)=[obj.oneHour.mu_ab; obj.oneHour.mu_ac; obj.oneHour.mu_bc];
+                obj.Powertrana2b(k,:)=obj.oneHour.tSA(2);
+                obj.Powertrana2c(k,:)=obj.oneHour.tSA(3);
+                obj.Powertranb2c(k,:)=obj.oneHour.tSB(3);
                 obj.TotalCost(k,:)=obj.oneHour.TotalCost;
 
-                obj.PowerGrid(k,:)=obj.oneHour.PowerGrid;
-                obj.PBDay(k,:)=obj.oneHour.PB;
+                obj.PowerGrid(k,:)=[obj.oneHour.MA.PowerGrid,obj.oneHour.MB.PowerGrid,obj.oneHour.MC.PowerGrid];
+                obj.PBDay(k,:)=[obj.oneHour.MA.PowerEBSS,obj.oneHour.MB.PowerEBSS,obj.oneHour.MC.PowerEBSS]; 
 
-                BC=[obj.oneHour.MA.battery_capacity,obj.oneHour.MB.battery_capacity,obj.oneHour.MC.battery_capacity];
+                BC=[obj.oneHour.MA.BC,obj.oneHour.MB.BC,obj.oneHour.MC.BC];
                 dt=24/obj.NT;
 
 
-                obj.SOCDay(k+1,:)=obj.SOCDay(k,:)+obj.PBDay(k,:)./BC*dt;
+                obj.SOCDay(k+1,:)=obj.SOCDay(k,:)-obj.PBDay(k,:)./BC;
+                obj.oneHour.MA.SOC(k+1)=obj.SOCDay(k+1,1);
+                obj.oneHour.MB.SOC(k+1)=obj.SOCDay(k+1,2);
+                obj.oneHour.MC.SOC(k+1)=obj.SOCDay(k+1,3);
             end
         end
         function showCombined(obj)
@@ -152,12 +136,12 @@ classdef TwoLevel_oneDay < handle
 
             % Subplot 4: Power generation in three microgrids
             subplot(4, 2, 4)
-            h1 = plot(x, obj.PVa, 'Color', colors(1,:), 'LineStyle', lineStyles{1}, ...
+            h1 = plot(x, obj.oneHour.MA.PV, 'Color', colors(1,:), 'LineStyle', lineStyles{1}, ...
                 'LineWidth', lineWidth, 'Marker', 'none');
             hold on
-            h2 = plot(x, obj.PVb, 'Color', colors(2,:), 'LineStyle', lineStyles{2}, ...
+            h2 = plot(x, obj.oneHour.MB.PV, 'Color', colors(2,:), 'LineStyle', lineStyles{2}, ...
                 'LineWidth', lineWidth, 'Marker', 'none');
-            h3 = plot(x, obj.PVc, 'Color', colors(3,:), 'LineStyle', lineStyles{3}, ...
+            h3 = plot(x, obj.oneHour.MC.PV, 'Color', colors(3,:), 'LineStyle', lineStyles{3}, ...
                 'LineWidth', lineWidth, 'Marker', 'none');
             hold off
 
