@@ -17,9 +17,9 @@ MAdata.Pmax=40;
 MBdata.Pmax=40;
 MCdata.Pmax=40;
 
-MAdata.battery_capacity=40;
-MBdata.battery_capacity=40;
-MCdata.battery_capacity=40;
+MAdata.battery_capacity=400;
+MBdata.battery_capacity=400;
+MCdata.battery_capacity=400;
 
 MA = Micro_Community(MAdata);
 MB = Micro_Community(MBdata);
