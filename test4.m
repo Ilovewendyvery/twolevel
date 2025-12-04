@@ -3,7 +3,7 @@
 % C_grid(x) = a0*x^2 + b0*x + c0
 % C_EBSS(x,SOC) = (1-SOC)/SOC*exp(3)*0.1*(exp(x)-1) .* (x <= 0) 
 %                + (0.01*x^2 + (1-SOC)/SOC*exp(3)*0.1*x) .* (x > 0)
-
+tic;
 clear all; close all; clc;
 
 %% 参数设置
@@ -293,9 +293,10 @@ fprintf('净总成本: %.2f ¥\n', -total_utility + total_grid_cost + total_batt
 visualize_results(X_opt, G_opt, B_opt, PV, SOC_opt, D, time_price, ...
     convergence_info, total_cost_all,Lambda_opt);
 
+toc;
 %% 保存结果
-save('optimization_results.mat', 'X_opt', 'G_opt', 'B_opt', 'SOC_opt', ...
-    'PV', 'D', 'time_price', 'total_cost_all', 'convergence_info');
+%save('optimization_results.mat', 'X_opt', 'G_opt', 'B_opt', 'SOC_opt', ...
+    %'PV', 'D', 'time_price', 'total_cost_all', 'convergence_info');
 
 %% ==================== 辅助函数 ====================
 function cost = battery_cost(x, SOC)
