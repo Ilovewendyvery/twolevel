@@ -60,7 +60,7 @@ end
 % 光伏发电预测 PV_A
 PV = zeros(1, T);
 daylight_hours = 6:19; % 白天时段
-sun_power = 25*2; % 峰值光伏功率
+sun_power = 25*7; % 峰值光伏功率
 PV(daylight_hours) = sun_power * sin(pi*(daylight_hours-6)/(19-6)).^2;
 PV = PV + 2*randn(1, T); % 添加噪声
 PV = max(0, PV); % 确保非负
@@ -143,7 +143,7 @@ for t = 1:T
             
             % 边界约束
             lb = 0;
-            ub = 2.5 * D_t(i); % 最大不超过2.5倍基准需求
+            ub = 1 * D_t(i); % 最大不超过2.5倍基准需求
             
             % 求解一维优化问题
             options = optimset('Display', 'off', 'TolX', 1e-6);
@@ -305,10 +305,10 @@ function cost = battery_cost(x, SOC)
     
     if x <= 0  % 充电
         % (1-SOC)/SOC * exp(3) * 1 * (exp(x) - 1)
-        cost = (1-SOC)/SOC * exp(0) * 600 * (exp(x) - 1);
+        cost = (1-SOC)/SOC * exp(0) * 0.1 * (exp(x) - 1);
     else  % 放电
         % 0.01*x^2 + (1-SOC)/SOC * exp(3) * 1 * x
-        cost = 0.00011*x^2 + (1-SOC)/SOC * exp(0) * 0.5 * x;
+        cost = 0.00011*x^2 + (1-SOC)/SOC * exp(0) * 0.1 * x;
     end
 end
 
@@ -357,7 +357,7 @@ function [G_opt, B_opt, feasible, total_cost] = system_optimization(...
         B = vars(2);
         
         % 电网成本（考虑分时电价）
-        grid_cost = a0*G^2 + (b0 + time_price)*G;
+        grid_cost = a0*G^2 + (b0 + 0.05*time_price)*G;
         
         % 电池成本
         battery_cost_val = battery_cost(B, SOC);
