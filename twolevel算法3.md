@@ -26,8 +26,8 @@ $$
 #### 上层更新供给(Supply)功率：
 
 $$
-C_{grid}(x)= a_0x^2+b_0x+c_0;\\
-C_{EBSS}(x,SOC)=-\frac{0.5}{SOC^2}x
+C_{grid}(x)= a_0x^2+b_0x+c_0;\\ 
+C_{EBSS}(x,SOC)=   (1-SOC)/SOC*exp(3)*0.1*(exp(x)-1).*(x <= 0) + (0.01*x.^2 + (1-SOC)/SOC*exp(3)*0.1*x).*(x > 0); 
 $$
 
 微网A:
@@ -100,9 +100,19 @@ $$
 
 
 
-## 数值实验参数：
+$$
+\min_{x^A_{i,t},G_A,B_A}&  \sum_i^{n}\left[-U(x^A_{i,t},D^A_{i,t})\right] +C_{grid,EBSS}(G_A,B_A,SOC)\\
+s.t.&\sum_i^{m+n} x^A_{i,t}= G_A+PV_A+B_A
+$$
 
 $$
- 
+x_i=argmin -U(x_i)+\lambda x_i +\frac{\rho}{2}\|\sum_{j\neq i}^{n} x_{j,t}^{old}- (G_A+PV_A+B_A)\|^2\\
+(G_A,B_A)=argmin C_{grid,EBSS}(G_A,B_A,SOC)-\lambda (G_A+PV_A+B_A) +\frac{\rho}{2}\|\sum_i^{m+n} x^{old}_{i,t}- (G_A+PV_A+B_A)\|^2\\
+\lambda=\lambda+\rho(\sum_{j\neq i}^{n} x_{j,t}^{old}- (G_A+PV_A+B_A))
+$$
+
+
+$$
+
 $$
 

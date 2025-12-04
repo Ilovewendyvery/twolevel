@@ -3,7 +3,7 @@
 % C_grid(x) = a0*x^2 + b0*x + c0
 % C_EBSS(x,SOC) = (1-SOC)/SOC*exp(3)*0.1*(exp(x)-1) .* (x <= 0) 
 %                + (0.01*x^2 + (1-SOC)/SOC*exp(3)*0.1*x) .* (x > 0)
-tic;
+
 clear all; close all; clc;
 
 %% 参数设置
@@ -131,8 +131,7 @@ for t = 1:T
             z_prev = z;
         end
         
-        %% 步骤1: 更新x（用户侧，可并行）
-        total_x_prev = sum(x);
+        %% 步骤1: 更新x（用户侧，可并行） 
         
         % 并行更新每个用户的用电量
         for i = 1:n  
@@ -293,10 +292,9 @@ fprintf('净总成本: %.2f ¥\n', -total_utility + total_grid_cost + total_batt
 visualize_results(X_opt, G_opt, B_opt, PV, SOC_opt, D, time_price, ...
     convergence_info, total_cost_all,Lambda_opt);
 
-toc;
 %% 保存结果
-%save('optimization_results.mat', 'X_opt', 'G_opt', 'B_opt', 'SOC_opt', ...
-    %'PV', 'D', 'time_price', 'total_cost_all', 'convergence_info');
+save('optimization_results.mat', 'X_opt', 'G_opt', 'B_opt', 'SOC_opt', ...
+    'PV', 'D', 'time_price', 'total_cost_all', 'convergence_info');
 
 %% ==================== 辅助函数 ====================
 function cost = battery_cost(x, SOC)
@@ -348,9 +346,9 @@ function [G_opt, B_opt, feasible, total_cost] = system_optimization(...
     lb = [0, -B_max];
     ub = [Inf, B_max];
     
-    % 线性等式约束：G + B = net_demand
-    Aeq = [1, 1];
-    beq = net_demand;
+    % % 线性等式约束：G + B = net_demand
+    % Aeq = [1, 1];
+    % beq = net_demand;
     
     % 目标函数
     function f = system_objective(vars)

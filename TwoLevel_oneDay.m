@@ -6,7 +6,7 @@ classdef TwoLevel_oneDay < handle
         LambdaDay;       %[lambda1,lambda2,lambda3]*24
 
         %Adjustable parameters
-        NT=12;
+        NT=5;
         oneHour;
         PBDay;
         SOCDay;
@@ -91,7 +91,7 @@ classdef TwoLevel_oneDay < handle
             xlabel('Time Step', 'FontSize', 11, 'FontWeight', 'normal')
             ylabel('Transfer Power (kW)', 'FontSize', 11, 'FontWeight', 'normal')
             title('(a) Inter-microgrid Power Transfer', 'FontSize', 12, 'FontWeight', 'bold')
-            legend([h1, h2, h3], {'MG a→b', 'MG a→c', 'MG b→c'}, ...
+            legend([h1, h2, h3], {'MG aâb', 'MG aâc', 'MG bâc'}, ...
                 'Location', 'best', 'FontSize', 9, 'Box', 'off')
             %grid on
             set(gca, 'GridAlpha', 0.3, 'GridLineStyle', '--')
@@ -282,7 +282,7 @@ classdef TwoLevel_oneDay < handle
             xlabel('Time Step', 'FontSize', 11, 'FontWeight', 'normal')
             ylabel('Transfer Power (kW)', 'FontSize', 11, 'FontWeight', 'normal')
             title('(a) Inter-microgrid Power Transfer', 'FontSize', 12, 'FontWeight', 'bold')
-            legend([h1, h2, h3], {'MG a→b', 'MG a→c', 'MG b→c'}, ...
+            legend([h1, h2, h3], {'MG aâb', 'MG aâc', 'MG bâc'}, ...
                 'Location', 'best', 'FontSize', 9, 'Box', 'off')
             %grid on
             set(gca, 'GridAlpha', 0.3, 'GridLineStyle', '--')
@@ -309,7 +309,7 @@ classdef TwoLevel_oneDay < handle
             xlabel('Time Step', 'FontSize', 11, 'FontWeight', 'normal')
             ylabel('Price (Yuan/kWh)', 'FontSize', 11, 'FontWeight', 'normal')
             title('(b) Internal Electricity Price Changes', 'FontSize', 12, 'FontWeight', 'bold')
-            legend([h1, h2, h3, h4, h5, h6], {'MG a', 'MG b', 'MG c','MG a→b', 'MG a→c', 'MG b→c'}, ...
+            legend([h1, h2, h3, h4, h5, h6], {'MG a', 'MG b', 'MG c','MG aâb', 'MG aâc', 'MG bâc'}, ...
                 'Location', 'best', 'FontSize', 9, 'Box', 'off') 
             grid on
             set(gca, 'GridAlpha', 0.3, 'GridLineStyle', '--')
