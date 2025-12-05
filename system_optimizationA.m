@@ -1,9 +1,7 @@
 function [G_opt, B_opt,Tab_opt,Tac_opt] = system_optimizationA(...
     PV, SOC, lambda, sum_x, rho, time_price, ...
-    a0, b0, B_max, ~,tmu)
-% 系统优化：求解最优的G和B 
-CofT=1; 
-Tmax=10;
+    a0, b0, B_max, E_max,tmu,CofT,Tmax)
+% 系统优化：求解最优的G和B  
 net_demand = sum_x - PV;
 
 options = optimoptions('fmincon', 'Display', 'off', ...
@@ -36,9 +34,9 @@ options = optimoptions('fmincon', 'Display', 'off', ...
         admm_inn=-tmu(1)*Tab-tmu(2)*Tac+CofT*(Tab)^2+CofT*Tac^2;
 
         f = grid_cost + battery_cost + admm_penalty+admm_inn;
-    end
-lb=[0,-B_max,-Tmax,-Tmax];
-ub=[Inf,B_max,Tmax,Tmax];
+    end 
+lb=[0,-min(E_max*(1-SOC),B_max),-Tmax,-Tmax];
+ub=[Inf,min(E_max*SOC,B_max),Tmax,Tmax];
 x0 = [max(0, net_demand), 0,0,0];
 [vars_opt, ~] = fmincon(@obje_A, x0, [], [], [], [], lb, ub, [], options);
 G_opt = vars_opt(1);
