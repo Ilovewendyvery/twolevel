@@ -1,5 +1,5 @@
 function [G_opt, B_opt,Tac_opt,Tbc_opt] = system_optimizationC(...
-    PV, SOC, lambda, sum_x, rho, time_price, ...
+    PV, SOC, lambda, sum_x, rho,  ...
     a0, b0, B_max, E_max,tmu,CofT,Tmax)
 % 系统优化：求解最优的G和B  
 net_demand = sum_x - PV;
@@ -15,7 +15,7 @@ options = optimoptions('fmincon', 'Display', 'off', ...
         Tbc=vars(4);
 
         % 电网成本（考虑分时电价）
-        grid_cost = a0*G^2 + (b0 + 0.05*time_price)*G;
+        grid_cost = a0*G^2 + b0 *G;
 
         % 电池成本
         if B <= 0  % 充电

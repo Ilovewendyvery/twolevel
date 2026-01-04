@@ -30,7 +30,6 @@ classdef New < handle
 
 
         PV;        %(3,T)
-        time_price;%(1,T)
         D1;D2;D3;  % (n,T)      
 
         X1_opt;      % (n,T)最优用电量 [kW]
@@ -46,8 +45,8 @@ classdef New < handle
 
         total_cost_all;
         covnerge_numer;%(T,1)
-        converge_primal_lam_end;%(T,3)
-        converge_primal_mu_end;%(T,3)
+        converge_error_lam;%(T,3)
+        converge_error_mu;%(T,3)
     end
 
     methods
@@ -59,18 +58,7 @@ classdef New < handle
             %% For A B C
             [D,PV]=generation(obj.n(1),obj.T,1);obj.D1=D;obj.PV(1,:)=PV;
             [D,PV]=generation(obj.n(2),obj.T,2);obj.D2=D;obj.PV(2,:)=PV;
-            [D,PV]=generation(obj.n(3),obj.T,3);obj.D3=D;obj.PV(3,:)=PV;  
-
-            % 分时电价（用于电网成本中的b0调整）
-            time_price = zeros(1, obj.T);
-            peak_hours = [8:11, 18:21];    % 峰时
-            flat_hours = [7, 12:17, 22];   % 平时
-            valley_hours = [1:6, 23:24];   % 谷时
-            time_price(peak_hours) = 0.8;  % 峰时电价
-            time_price(flat_hours) = 0.5;  % 平时电价
-            time_price(valley_hours) = 0.3; % 谷时电价
-            obj.time_price=time_price;
-
+            [D,PV]=generation(obj.n(3),obj.T,3);obj.D3=D;obj.PV(3,:)=PV;
 
         end
         function run_inital(obj)
@@ -87,9 +75,7 @@ classdef New < handle
             obj.Tac_opt = zeros(1, obj.T);
             obj.Tbc_opt = zeros(1, obj.T);
 
-            obj.covnerge_numer = zeros(obj.T, 1); % 存储每个时段的收敛信息 
-            obj.converge_primal_lam_end= zeros(obj.T, 3);%(T,3)
-            obj.converge_primal_mu_end=zeros(obj.T, 3);%(T,3) 
+            obj.covnerge_numer = zeros(obj.T, 1); % 存储每个时段的收敛信息  
             obj.total_cost_all = 0;
         end
 
@@ -110,10 +96,8 @@ classdef New < handle
         
         function hour(obj,t,SOC_current)
             fprintf('\n=== 时段 %02d:00 - %02d:00 ===\n', t-1, t);
-            fprintf('光伏预测: %.2f kW, 分时电价: %.2f ¥/kWh\n', obj.PV(1,t), obj.time_price(t));
-
-            % 当前时段数据 
-            time_price_t = obj.time_price(t);
+            fprintf('光伏预测: %.2f kW, 分时电价: %.2f ¥/kWh\n', obj.PV(1,t));
+            
 
             %% ADMM初始化（当前时段）
             rho_t = obj.rho*ones(3,1);  % 当前时段的惩罚参数
@@ -149,7 +133,7 @@ classdef New < handle
                  
 
                 %% 步骤2: 更新系统变量 (z, G, B)
-                [G,B,z,Tab,Tac,Tbc]=argmin_other2(obj,x1,x2,x3,lambda, rho_t,t,SOC_current);
+                [G,B,z,Tab,Tac,Tbc,conver_mu]=argmin_other2(obj,x1,x2,x3,lambda, rho_t,t,SOC_current);
 
 
 
@@ -167,7 +151,7 @@ classdef New < handle
                 end
 
                 % 计算当前解的总成本（用于监控）
-                [u_utility,g_cost,b_cost]=obj.cost_compute(x1,x2,x3,t,G,B,Tab,Tac,Tbc,SOC_current,time_price_t);
+                [u_utility,g_cost,b_cost]=obj.cost_compute(x1,x2,x3,t,G,B,Tab,Tac,Tbc,SOC_current);
                 cost_history(:,k) = -u_utility + g_cost + b_cost; 
 
                 %% 收敛检查
@@ -222,11 +206,15 @@ classdef New < handle
 
             % 记录收敛信息
             obj.covnerge_numer(t) = iter_used;
+            if t==3
+            obj.converge_error_lam=[sqrt(sum(primal_res_history(:,2:iter_used).^2,1)); sqrt(sum(dual_res_history(:,2:iter_used).^2,1))];
+            obj.converge_error_mu=conver_mu;
+            end
             % obj.covnerge_numer(t, 2) = max(primal_res_history(:,min(iter_used, obj.max_admm_iter)));
 
             % 计算当前时段成本
 
-            [u_utility,g_cost,b_cost]=obj.cost_compute(x1,x2,x3,t,G,B,Tab,Tac,Tbc,SOC_current,time_price_t);
+            [u_utility,g_cost,b_cost]=obj.cost_compute(x1,x2,x3,t,G,B,Tab,Tac,Tbc,SOC_current);
             cost_history(:,k) = -u_utility + g_cost + b_cost;
 
             obj.total_cost_all = obj.total_cost_all + cost_history(:,k);
@@ -256,21 +244,21 @@ classdef New < handle
             end
         end
          
-        function [G,B,z,Tab,Tac,Tbc]=argmin_other2(obj,x1,x2,x3,lambda, rho_t,t,SOC_current) 
+        function [G,B,z,Tab,Tac,Tbc,conver_mu]=argmin_other2(obj,x1,x2,x3,lambda, rho_t,t,SOC_current) 
             % 系统优化：最小化电网成本+电池成本+ADMM惩罚项
-            tmu=[0;0;0];
+            tmu=[0;0;0];conver_mu=zeros(2,20);
             for k2=1:40
                 [G_new, B_new, Tab, Tac] = system_optimizationA(...
                     obj.PV(t), SOC_current(1), ...
-                    lambda(1), sum(x1), rho_t(1), obj.time_price(t), ...
+                    lambda(1), sum(x1), rho_t(1), ...
                     obj.a0, obj.b0, obj.B_max, obj.E_max,tmu,obj.CofT,obj.Tmax);
                 [G_newB, B_newB, bTab, Tbc] = system_optimizationB(...
                     obj.PV(t), SOC_current(2), ...
-                    lambda(2), sum(x2), rho_t(2), obj.time_price(t), ...
+                    lambda(2), sum(x2), rho_t(2), ...
                     obj.a0, obj.b0, obj.B_max, obj.E_max,tmu,obj.CofT,obj.Tmax);
                 [G_newC, B_newC, bTac, bTbc] = system_optimizationC(...
                     obj.PV(t), SOC_current(3), ...
-                    lambda(3), sum(x3), rho_t(3), obj.time_price(t), ...
+                    lambda(3), sum(x3), rho_t(3), ...
                     obj.a0, obj.b0, obj.B_max, obj.E_max,tmu,obj.CofT,obj.Tmax);
 
                 mu_old=tmu;
@@ -278,7 +266,9 @@ classdef New < handle
                 tmu=tmu-0.1*primal_res;
 
                 err1=norm(primal_res);
-                err2=norm(tmu-mu_old);
+                err2=norm(tmu-mu_old); 
+                conver_mu(:,k2)=[err1;err2]; 
+
                 disp(['mu err:',num2str([err1,err2])])
                 disp(['mu :',num2str(tmu')])
                 disp(['3T:',num2str([Tab,Tac,Tbc])])
@@ -294,7 +284,7 @@ classdef New < handle
             z=G+obj.PV(:,t)+B+[-Tab-Tac;bTab-Tbc;bTac+ bTbc]; 
         end
 
-        function [u_utility,g_cost,b_cost,T_cost]=cost_compute(obj,x1,x2,x3,t,G,B,Tab,Tac,Tbc,SOC_current,time_price_t)
+        function [u_utility,g_cost,b_cost,T_cost]=cost_compute(obj,x1,x2,x3,t,G,B,Tab,Tac,Tbc,SOC_current)
             u_utility = [0;0;0];  
             for i = 1:obj.n(1)
                 u_utility(1) = u_utility(1) + piecewise_log_utility(...
@@ -310,53 +300,27 @@ classdef New < handle
             end
             C_grid=@(x) obj.a0*x^2 + obj.b0*x + obj.c0;
 
-            g_cost = [C_grid(G(1)) + time_price_t * G(1);C_grid(G(2)) + time_price_t * G(3);C_grid(G(3)) + time_price_t * G(3)];
+            g_cost = [C_grid(G(1));C_grid(G(2));C_grid(G(3))];
             b_cost  = [battery_cost(B(1), SOC_current(1));battery_cost(B(2), SOC_current(2));battery_cost(B(3), SOC_current(3))];
 
             T_cost=obj.CofT*[Tab^2+Tac^2;Tab^2+Tbc^2;Tac^2+Tbc^2];
         end
         
         function draw(obj)
-            %  %% 计算总体性能指标
-            % fprintf('\n\n=== 优化完成 ===\n');
-            % fprintf('总成本: %.2f ¥\n', obj.total_cost_all);
-            % fprintf('平均每时段成本: %.2f ¥\n', obj.total_cost_all/obj.T);
-            % fprintf('总用电量: %.2f kWh\n', sum(sum(obj.X1_opt)));
-            % fprintf('总电网供电: %.2f kWh\n', sum(obj.G_opt(1,:)));
-            % fprintf('总电池充电: %.2f kWh\n', sum(obj.B_opt(1,obj.B_opt(1,:) < 0)));
-            % fprintf('总电池放电: %.2f kWh\n', sum(obj.B_opt(1,obj.B_opt(1,:) > 0)));
-            % fprintf('最终SOC: %.3f\n', SOC_current);
-            % fprintf('平均ADMM迭代次数: %.1f\n', mean(obj.covnerge_numer(:,1)));
-            % 
-            % %% 成本分解分析
-            % [total_utility, total_grid_cost, total_battery_cost] = ...
-            %     analyze_costs(obj.X1_opt, obj.G_opt, obj.B_opt, obj.SOC_opt, obj.D1, ...
-            %     obj.beta, obj.sigma, obj.a0, obj.b0, obj.c0, obj.time_price);
-            % 
-            % fprintf('\n=== 成本分解 ===\n');
-            % fprintf('用户效用总价值: %.2f ¥\n', total_utility);
-            % fprintf('电网总成本: %.2f ¥ (%.1f%%)\n', ...
-            %     total_grid_cost, 100*total_grid_cost/obj.total_cost_all);
-            % fprintf('电池总成本: %.2f ¥ (%.1f%%)\n', ...
-            %     total_battery_cost, 100*total_battery_cost/obj.total_cost_all);
-            % fprintf('净总成本: %.2f ¥\n', -total_utility + total_grid_cost + total_battery_cost);
-            % 
-
             close all;
 
             %% 可视化结果
-            visualize_results(obj.X1_opt, obj.G_opt(1,:), obj.B_opt(1,:), obj.PV(1,:), obj.SOC_opt(1,:), obj.D1, obj.time_price, ...
-                obj.covnerge_numer, obj.total_cost_all(1),obj.Lambda_opt(1,:));
-
-            visualize_results(obj.X2_opt, obj.G_opt(2,:), obj.B_opt(2,:), obj.PV(2,:), obj.SOC_opt(2,:), obj.D2, obj.time_price, ...
-                obj.covnerge_numer, obj.total_cost_all(2),obj.Lambda_opt(2,:));
-            visualize_results(obj.X3_opt, obj.G_opt(3,:), obj.B_opt(3,:), obj.PV(3,:), obj.SOC_opt(3,:), obj.D3, obj.time_price, ...
-                obj.covnerge_numer, obj.total_cost_all(3),obj.Lambda_opt(3,:));
+            visualize_results(obj.X1_opt, obj.G_opt(1,:), obj.B_opt(1,:), obj.PV(1,:), obj.SOC_opt(1,:), obj.D1, ...
+                obj.covnerge_numer, obj.total_cost_all(1),obj.Lambda_opt(1,:),-min(obj.Tab_opt,0),-min(obj.Tac_opt,0),'b2a','c2a',max(obj.Tab_opt,0),max(obj.Tac_opt,0),'a2b','a2c'); 
+            visualize_results(obj.X2_opt, obj.G_opt(2,:), obj.B_opt(2,:), obj.PV(2,:), obj.SOC_opt(2,:), obj.D2, ...
+                obj.covnerge_numer, obj.total_cost_all(2),obj.Lambda_opt(2,:),max(obj.Tab_opt,0),-min(obj.Tbc_opt,0),'a2b','c2b',-min(obj.Tab_opt,0),max(obj.Tbc_opt,0),'b2a','b2c');
+            visualize_results(obj.X3_opt, obj.G_opt(3,:), obj.B_opt(3,:), obj.PV(3,:), obj.SOC_opt(3,:), obj.D3, ...
+                obj.covnerge_numer, obj.total_cost_all(3),obj.Lambda_opt(3,:),max(obj.Tac_opt,0),max(obj.Tbc_opt,0),'a2c','b2c',-min(obj.Tac_opt,0),-min(obj.Tbc_opt,0),'c2a','c2b');
 
 
             %% 保存结果
             % save('optimization_results.mat', 'X_opt', 'G_opt', 'B_opt', 'SOC_opt', ...
-            % 'PV', 'D', 'time_price', 'total_cost_all', 'covnerge_numer');
+            % 'PV', 'D','total_cost_all', 'covnerge_numer');
 
 
               % Display comprehensive power transfer situation of six subplots
@@ -387,6 +351,22 @@ classdef New < handle
             title('(a) Inter-microgrid Power Transfer', 'FontSize', 12, 'FontWeight', 'bold')
             legend([h1, h2, h3], {'MGa2b', 'MGa2c', 'MG b2c'}, ...
                 'Location', 'best', 'FontSize', 9, 'Box', 'off')
+            %grid on
+            set(gca, 'GridAlpha', 0.3, 'GridLineStyle', '--')
+
+
+             figure(5)  % Create large figure window 
+            x = 1:obj.T;
+
+            plot(x, sum(obj.D1,1)-obj.PV(1,:), 'r-', 'LineWidth', 2, 'Marker', 'none');
+            hold on
+           plot(x, sum(obj.D2,1)-obj.PV(2,:), 'b-', 'LineWidth', 2, 'Marker', 'none');
+           plot(x, sum(obj.D3,1)-obj.PV(3,:), 'g-', 'LineWidth', 2, 'Marker', 'none');
+
+            xlabel('Time Step', 'FontSize', 11, 'FontWeight', 'normal')
+            ylabel('Transfer Power (kW)', 'FontSize', 11, 'FontWeight', 'normal')
+            title('(a) Inter-microgrid Power Transfer', 'FontSize', 12, 'FontWeight', 'bold')
+            legend( 'MGA', 'MGB', 'MGC' )
             %grid on
             set(gca, 'GridAlpha', 0.3, 'GridLineStyle', '--')
 
@@ -447,74 +427,60 @@ SOC_new = SOC_old + delta_SOC;
 SOC_new = max(SOC_min, min(SOC_max, SOC_new));
 end
 
-function [total_utility, total_grid_cost, total_battery_cost] = ...
-    analyze_costs(X, G, B, SOC, D, beta, sigma, a0, b0, c0, time_price)
-% 分析总成本分解
 
-[n, T] = size(X);
+function visualize_results(X, G, B, PV, SOC, D, ...
+    covnerge_numer, ~, lambda, input1, input2, input1T, input2T, output1, output2, output1T, output2T)
+% Visualize all results
 
-total_utility = 0;
-total_grid_cost = 0;
-total_battery_cost = 0;
-
-for t = 1:T
-    % 用户效用
-    for i = 1:n
-        total_utility = total_utility + ...
-            piecewise_log_utility(X(i,t), D(i,t), beta, sigma);
-    end
-
-    % 电网成本
-    total_grid_cost = total_grid_cost + ...
-        a0*G(t)^2 + (b0 + time_price(t))*G(t) + c0;
-
-    % 电池成本
-    total_battery_cost = total_battery_cost + ...
-        battery_cost(B(t), SOC(t));
-end
-end
-
-function visualize_results(X, G, B, PV, SOC, D, time_price, ...
-    covnerge_numer, ~,lambda)
-% 可视化所有结果
 
 [~, T] = size(X);
 
 figure('Position', [100, 100, 1400, 900]);
 
-% 1. 功率平衡图
+% 1. Power balance chart
 subplot(3, 3, 1);
 sum_x = sum(X, 1);
-total_supply = G + PV + max(0, B); % 电池放电为正
+total_supply = G + PV + max(0, B); % Battery discharge as positive
 
 plot(1:T, sum_x, 'b-', 'LineWidth', 2); hold on;
 plot(1:T, total_supply, 'r--', 'LineWidth', 2);
 plot(1:T, G, 'g:', 'LineWidth', 1.5);
 plot(1:T, PV, 'y:', 'LineWidth', 1.5);
 
-xlabel('时间 (小时)');
-ylabel('功率 (kW)');
-title('功率平衡');
-legend('总需求', '总供应', '电网', '光伏', 'Location', 'best');
+xlabel('Time (hour)');
+ylabel('Power (kW)');
+title('Power Balance');
+legend('Total Demand', 'Total Supply', 'Grid', 'PV', 'Location', 'best');
 grid on;
 xlim([1, T]);
 
-% 2. 电源组成（堆叠面积图）
+% 2. Power supply composition (stacked area chart)
 subplot(3, 3, 2);
-supply_components = [PV; G; max(0, B); -min(0, B)]';
+supply_components = [PV; G; max(0, B); input1; input2]';
 area(1:T, supply_components);
-xlabel('时间 (小时)');
-ylabel('功率 (kW)');
-title('电源组成');
-legend({'光伏', '电网', '电池放电', '电池充电'}, 'Location', 'best');
+xlabel('Time (hour)');
+ylabel('Power (kW)');
+title('Power Supply Composition');
+legend({'PV', 'Grid', 'Battery Discharge', input1T, input2T}, 'Location', 'best');
 grid on;
 xlim([1, T]);
 
-% 3. 电池状态
+% 3. Power consumption composition
 subplot(3, 3, 3);
+supply_components = [output1; output2; -min(0, B)]';
+area(1:T, supply_components);
+xlabel('Time (hour)');
+ylabel('Power (kW)');
+title('Power Consumption Composition');
+legend({output1T, output2T, 'Battery Charging'}, 'Location', 'best');
+grid on;
+xlim([1, T]);
+
+% 4. Battery status
+subplot(3, 3, 4);
 yyaxis left;
 plot(1:T, B, 'b-', 'LineWidth', 2);
-ylabel('充放电功率 (kW)');
+ylabel('Charge/Discharge Power (kW)');
 ylim([-max(abs(B))*1.1, max(abs(B))*1.1]);
 
 yyaxis right;
@@ -522,41 +488,26 @@ plot(1:T, SOC, 'r-', 'LineWidth', 2);
 ylabel('SOC');
 ylim([0, 1]);
 
-xlabel('时间 (小时)');
-title('电池状态');
+xlabel('Time (hour)');
+title('Battery Status');
 grid on;
 xlim([1, T]);
 
-% 4. 电价和光伏
-subplot(3, 3, 4);
-yyaxis left;
-plot(1:T, time_price, 'b-', 'LineWidth', 2);
-ylabel('电价 (¥/kWh)');
-
-yyaxis right;
-plot(1:T, PV, 'r-', 'LineWidth', 2);
-ylabel('光伏功率 (kW)');
-
-xlabel('时间 (小时)');
-title('电价和光伏曲线');
-grid on;
-xlim([1, T]);
-
-% 5. 用户用电量分布
+% 5. User power consumption distribution
 subplot(3, 3, 5);
 imagesc(X);
 colorbar;
-xlabel('时间 (小时)');
-ylabel('用户');
-title('用户用电量分布 (kW)');
+xlabel('Time (hour)');
+ylabel('User');
+title('User Power Consumption Distribution (kW)');
 colormap('hot');
 
-% 6. 成本函数曲线
+% 6. Cost function curve
 subplot(3, 3, 6);
 
-% 绘制电池成本函数曲线（示例）
-SOC_test = 0.3:0.1:0.9;
-B_test = -20:0.5:20;
+% Plot battery cost function curve (example)
+SOC_test = 0.3:0.15:0.9;
+B_test = -20:2:20;
 cost_matrix = zeros(length(SOC_test), length(B_test));
 
 for i = 1:length(SOC_test)
@@ -566,40 +517,31 @@ for i = 1:length(SOC_test)
 end
 
 surf(B_test, SOC_test, cost_matrix);
-xlabel('电池功率 (kW)');
+xlabel('Battery Power (kW)');
 ylabel('SOC');
-zlabel('成本 (¥)');
-title('电池成本函数');
+zlabel('Cost (¥)');
+title('Battery Cost Function');
 grid on;
 
-% 7. ADMM收敛情况
+% 7. ADMM convergence
 subplot(3, 3, 7);
-bar(1:T, covnerge_numer(:,1));
-xlabel('时段');
-ylabel('ADMM迭代次数');
-title('各时段ADMM收敛速度');
+bar(1:T, covnerge_numer(:, 1));
+xlabel('Time Period');
+ylabel('ADMM Iterations');
+title('ADMM Convergence Speed by Period');
 grid on;
-ylim([0, max(covnerge_numer(:,1))*1.1]);
+ylim([0, max(covnerge_numer(:, 1))*1.1]);
 
-% % 8. 成本分解饼图
-% subplot(3, 3, 8);
-% [utility_val, grid_cost_val, battery_cost_val] = ...
-%     analyze_costs(X, G, B, SOC, D, beta, sigma, a0, b0, c0, time_price);
-%
-% cost_components = [-utility_val, grid_cost_val, battery_cost_val];
-% pie(cost_components);
-% title(sprintf('总成本分解 (总计: %.1f¥)', total_cost));
-% legend({'用户效用成本', '电网成本', '电池成本'}, 'Location', 'best');
-subplot(3,3,8)
+% 8. Dual variable
+subplot(3, 3, 8);
 plot(1:T, lambda, 'b-', 'LineWidth', 2); hold on;
-
-xlabel('时间 (小时)');
-legend('price', 'Location', 'best');
+xlabel('Time (hour)');
+ylabel('Value');
+legend('Dual variable', 'Location', 'best');
 grid on;
 xlim([1, T]);
 
-
-% 9. 基准需求 vs 优化需求
+% 9. Baseline demand vs optimized demand
 subplot(3, 3, 9);
 baseline_demand = sum(D, 1);
 optimized_demand = sum(X, 1);
@@ -607,49 +549,48 @@ optimized_demand = sum(X, 1);
 plot(1:T, baseline_demand, 'b-', 'LineWidth', 2); hold on;
 plot(1:T, optimized_demand, 'r--', 'LineWidth', 2);
 
-xlabel('时间 (小时)');
-ylabel('总用电量 (kW)');
-title('基准需求 vs 优化需求');
-legend('基准需求', '优化后需求', 'Location', 'best');
+xlabel('Time (hour)');
+ylabel('Total Power Consumption (kW)');
+title('Baseline Demand vs Optimized Demand');
+legend('Baseline Demand', 'Optimized Demand', 'Location', 'best');
 grid on;
 xlim([1, T]);
 
-% 添加总标题
-sgtitle('电力系统优化调度结果分析', 'FontSize', 14, 'FontWeight', 'bold');
+% Add overall title
+sgtitle('Electric Power System Optimization Dispatch Results Analysis', 'FontSize', 14, 'FontWeight', 'bold');
 end
 
-function [D,PV]=generation(n,T,user_type)
-% 生成用户基准需求
+function [D, PV] = generation(n, T, user_type)
+base_load = [2, 2, 2]; % Base load
+% Generate user baseline demand
 D = zeros(n, T);
 for i = 1:n
-    % 每个用户有不同的用电模式
-    %user_type = randi([1, 3]); % 1:住宅, 2:商业, 3:工业
-    base_load = [2, 2, 2]; % 基础负荷
-    %base_load = [1.5, 3.0, 8.0]; % 基础负荷
+    % Each user has different power consumption pattern
+    % user_type = randi([1, 3]); % 1: Residential, 2: Commercial, 3: Industrial
+  
 
-
-    % 生成日负荷曲线
+    % Generate daily load curve
     t_vec = 1:T;
-    if user_type == 1  % 住宅用户：早晚高峰
+    if user_type == 1  % Residential user: morning and evening peaks
         pattern = 0.7 + 0.3*sin(2*pi*(t_vec-7)/24) + ...
             0.4*exp(-((t_vec-8).^2)/(2*2^2)) + ...
             0.5*exp(-((t_vec-19).^2)/(2*3^2));
-    elseif user_type == 2  % 商业用户：白天高峰
+    elseif user_type == 2  % Commercial user: daytime peak
         pattern = 0.5 + 0.5*sin(2*pi*(t_vec-12)/24) + ...
             0.6*exp(-((t_vec-14).^2)/(2*4^2));
-    else  % 工业用户：相对平稳
+    else  % Industrial user: relatively stable
         pattern = 0.8 + 0.2*sin(2*pi*(t_vec)/24);
     end
 
     D(i, :) = base_load(user_type) * pattern + 0.2*randn(1, T);
-    D(i, :) = max(0.1, D(i, :)); % 确保非负
+    D(i, :) = max(0.1, D(i, :)); % Ensure non-negative
 end
 
-% 光伏发电预测 PV_A
+% PV generation forecast
 PV = zeros(1, T);
-daylight_hours = 6:19; % 白天时段
-sun_power = 25*3; % 峰值光伏功率
+daylight_hours = 6:19; % Daylight hours
+sun_power = 25*3; % Peak PV power
 PV(daylight_hours) = sun_power * sin(pi*(daylight_hours-6)/(19-6)).^2;
-PV = PV + 2*randn(1, T); % 添加噪声
-PV = max(0, PV); % 确保非负
+PV = PV + 2*randn(1, T); % Add noise
+PV = max(0, PV); % Ensure non-negative
 end
