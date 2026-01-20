@@ -7,8 +7,8 @@ classdef New < handle
         sigma = 8;     % 效用函数形状参数
 
         % 电网成本参数
-        a0 = 0.1;       % 二次项系数 (¥/kW²)
-        b0 = 2;        % 一次项系数 (¥/kW)
+        a0 = 0.01;       % 二次项系数 (¥/kW²)
+        b0 = 0.2;        % 一次项系数 (¥/kW)
         c0 = 0;          % 常数项
 
         % 电池参数
@@ -18,8 +18,11 @@ classdef New < handle
         SOC_max = 0.95;  % 最大SOC
         SOC_initial = 0.5; % 初始SOC
 
+        %电车参数
+        E_ev=100;
+
         %传递参数
-        CofT=0.1;
+        CofT=0.05;
         Tmax=10;
 
         % ADMM参数
@@ -83,18 +86,19 @@ classdef New < handle
             tic;
             run_inital(obj); 
             SOC_current = obj.SOC_initial*ones(3,1);
+            SOC_ev = obj.SOC_initial*ones(obj.n(1)/2,1);
             %% 主循环：按时间顺序处理（时间层在外层）
             for t = 1:obj.T
-                obj.hour(t,SOC_current);
+                obj.hour(t,SOC_current,SOC_ev);
 
                 % 更新SOC（供下一个时段使用）
-                SOC_current = update_battery_SOC(SOC_current, obj.B_opt(:,t), ...
-                    obj.E_max, obj.SOC_min, obj.SOC_max);
+                [SOC_current,SOC_ev] = update_battery_SOC(SOC_current, obj.B_opt(:,t), ...
+                    obj.E_max, obj.SOC_min, obj.SOC_max,SOC_ev,obj.X1_opt(obj.n(1)/2+1:end, t),obj.E_ev);
             end 
             toc; 
         end
         
-        function hour(obj,t,SOC_current)
+        function hour(obj,t,SOC_current,SOC_ev)
             fprintf('\n=== 时段 %02d:00 - %02d:00 ===\n', t-1, t);
             fprintf('光伏预测: %.2f kW, 分时电价: %.2f ¥/kWh\n', obj.PV(1,t));
             
@@ -126,9 +130,9 @@ classdef New < handle
                 end
 
                 %% 步骤1: 更新x（用户侧，可并行）
-                x1=argmin_x(obj,x1,G(1),B(1),lambda(1), rho_t(1),t,obj.n(1),obj.D1(:, t));
-                x2=argmin_x(obj,x2,G(2),B(2),lambda(2), rho_t(2),t,obj.n(2),obj.D2(:, t));
-                x3=argmin_x(obj,x3,G(3),B(3),lambda(3), rho_t(3),t,obj.n(3),obj.D3(:, t));
+                x1=argmin_x(obj,x1,G(1),B(1),lambda(1), rho_t(1),t,[obj.n(1)/2,obj.n(1)/2],obj.D1(:, t),SOC_ev);
+                x2=argmin_x(obj,x2,G(2),B(2),lambda(2), rho_t(2),t,[obj.n(2),0],obj.D2(:, t),[]);
+                x3=argmin_x(obj,x3,G(3),B(3),lambda(3), rho_t(3),t,[obj.n(3),0],obj.D3(:, t),[]);
 
                  
 
@@ -226,13 +230,27 @@ classdef New < handle
 
         end
 
-        function x=argmin_x(obj,x,G,B,lambda, rho_t,t,n,D)
-            % 并行更新每个用户的用电量
-            for i = 1:n
+        function x=argmin_x(obj,x,G,B,lambda, rho_t,t,n,D,SOC_ev)            
+            % 并行更新每个用户的用电量 
+            for i = 1:n(1)
                 % 用户i的本地优化问题
                 z0=sum(x)-x(i)-(G+obj.PV(t)+B);
                 fun = @(xi) user_local_optimization(xi, D(i), lambda, z0, ...
-                    obj.beta, obj.sigma, rho_t);
+                    obj.beta, obj.sigma, rho_t,'other');
+
+                % 边界约束
+                lb = 0;
+                ub = 1 * D(i); % 最大不超过2.5倍基准需求
+
+                % 求解一维优化问题
+                options = optimset('Display', 'off', 'TolX', 1e-6);
+                x(i) = fminbnd(fun, lb, ub, options);
+            end
+            for i = n(1)+1:n(1)+n(2)
+                % 用户i的本地优化问题
+                z0=sum(x)-x(i)-(G+obj.PV(t)+B);
+                fun = @(xi) user_local_optimization(xi, D(i), lambda, z0, ...
+                    obj.beta, obj.sigma, rho_t, SOC_ev(i-n(1)));
 
                 % 边界约束
                 lb = 0;
@@ -378,9 +396,13 @@ classdef New < handle
 
     end
 end
-function cost = user_local_optimization(xi, Di, lambda, z, beta, sigma, rho)
+function cost = user_local_optimization(xi, Di, lambda, z, beta, sigma, rho,SOC)
 % 用户本地优化目标函数
-utility = piecewise_log_utility(xi, Di, beta, sigma);
+if ischar(SOC)
+    utility = piecewise_log_utility(xi, Di, beta, sigma);
+else
+    utility = EV_utility(xi, Di, SOC); 
+end
 consensus_term = lambda * (xi) + (rho/2) * (xi + z)^2;
 cost = -utility + consensus_term;
 end
@@ -391,6 +413,13 @@ if x <= D
 else
     U = beta * log(1 + sigma * D);
 end
+end
+function U = EV_utility(x, D, SOC)
+beta_ev=8*(1-SOC);
+omega_ev=1;
+% 分段对数效用函数
+U=beta_ev*log(omega_ev*min(x,D)+1)/log(3);
+
 end
 function cost = battery_cost(x, SOC)
 % 电池成本函数
@@ -406,7 +435,7 @@ else  % 放电
 end
 end 
 
-function SOC_new = update_battery_SOC(SOC_old, B, E_max, SOC_min, SOC_max)
+function [SOC_new,SOC_ev_new] = update_battery_SOC(SOC_old, B, E_max, SOC_min, SOC_max,SOC_ev_old,Pev,E_ev)
 % 更新电池SOC
 % B: 电池功率 (kW), 正为放电，负为充电
 % 假设时间间隔为1小时
@@ -425,6 +454,9 @@ end
 
 SOC_new = SOC_old + delta_SOC;
 SOC_new = max(SOC_min, min(SOC_max, SOC_new));
+
+SOC_ev_new=SOC_ev_old+Pev/E_ev;
+SOC_ev_new =  min(1, SOC_ev_new);
 end
 
 
