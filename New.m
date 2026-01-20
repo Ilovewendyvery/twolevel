@@ -52,7 +52,7 @@ classdef New < handle
     methods
         function obj = New()
             %生成模拟数据
-            obj.T=24; obj.n=[60,30,1];
+            obj.T=24; obj.n=[60,1,1];
             rng(2023); % 设置随机种子 
 
             %% For A B C
@@ -561,121 +561,41 @@ sgtitle('Electric Power System Optimization Dispatch Results Analysis', 'FontSiz
 end
 
 function [D, PV] = generationA(n, T)
-% user_type =1;
-% base_load = [2, 2, 2]; % Base load
-% % Generate user baseline demand
-% D = zeros(n, T);
-
-% for i = 1:n
-%     % Each user has different power consumption pattern
-%     % user_type = randi([1, 3]); % 1: Residential, 2: Commercial, 3: Industrial
-% 
-% 
-%     % Generate daily load curve
-%     t_vec = 1:T;
-%     if user_type == 1  % Residential user: morning and evening peaks
-%         pattern = 0.7 + 0.3*sin(2*pi*(t_vec-7)/24) + ...
-%             0.4*exp(-((t_vec-8).^2)/(2*2^2)) + ...
-%             0.5*exp(-((t_vec-19).^2)/(2*3^2));
-%     elseif user_type == 2  % Commercial user: daytime peak
-%         pattern = 0.5 + 0.5*sin(2*pi*(t_vec-12)/24) + ...
-%             0.6*exp(-((t_vec-14).^2)/(2*4^2));
-%     else  % Industrial user: relatively stable
-%         pattern = 0.8 + 0.2*sin(2*pi*(t_vec)/24);
-%     end
-% 
-%     D(i, :) = base_load(user_type) * pattern + 0.2*randn(1, T);
-%     D(i, :) = max(0.1, D(i, :)); % Ensure non-negative
-% end
+ 
 A=getData(n);
 PV=sum(A.GG,1); 
 D=A.GC;
 end
-function [D, PV] = generationB(n, T)
-user_type =2;
-base_load = [2, 2, 2]; % Base load
-% Generate user baseline demand
-D = zeros(n, T);
 
-for i = 1:n
-    % Each user has different power consumption pattern
-    % user_type = randi([1, 3]); % 1: Residential, 2: Commercial, 3: Industrial
-  
-
-    % Generate daily load curve
-    t_vec = 1:T;
-    if user_type == 1  % Residential user: morning and evening peaks
-        pattern = 0.7 + 0.3*sin(2*pi*(t_vec-7)/24) + ...
-            0.4*exp(-((t_vec-8).^2)/(2*2^2)) + ...
-            0.5*exp(-((t_vec-19).^2)/(2*3^2));
-    elseif user_type == 2  % Commercial user: daytime peak
-        pattern = 0.5 + 0.5*sin(2*pi*(t_vec-12)/24) + ...
-            0.6*exp(-((t_vec-14).^2)/(2*4^2));
-    else  % Industrial user: relatively stable
-        pattern = 0.8 + 0.2*sin(2*pi*(t_vec)/24);
-    end
-
-    D(i, :) = base_load(user_type) * pattern + 0.2*randn(1, T);
-    D(i, :) = max(0.1, D(i, :)); % Ensure non-negative
-end 
+% function [D, PV] = generationA(n, T) 
+% A=getData(n); 
+% load('load_data.mat')
+% D=resedential_load(25:48)/100;
+% 
+% PV=sum(A.GG,1); 
+% PV=PV/max(PV)*2*max(D);
+% end
+function [D, PV] = generationB(n, T) 
+% Generate user baseline demand 
+load('load_data.mat')
+D=commertial_load(25:48)/100;
 PV = zeros(1, T);
 daylight_hours = 6:19; % Daylight hours
 sun_power = 25*3; % Peak PV power
 PV(daylight_hours) = sun_power * sin(pi*(daylight_hours-6)/(19-6)).^2;
-PV = PV + 2*randn(1, T); % Add noise
-PV = max(0, PV); % Ensure non-negative
-end
-% function [D, PV] = generationC(n, T)
-% user_type =3;
-% base_load = [2, 2, 2]; % Base load
-% % Generate user baseline demand
-% D = zeros(n, T);
-% 
-% for i = 1:n
-%     % Each user has different power consumption pattern
-%     % user_type = randi([1, 3]); % 1: Residential, 2: Commercial, 3: Industrial
-% 
-% 
-%     % Generate daily load curve
-%     t_vec = 1:T;
-%     if user_type == 1  % Residential user: morning and evening peaks
-%         pattern = 0.7 + 0.3*sin(2*pi*(t_vec-7)/24) + ...
-%             0.4*exp(-((t_vec-8).^2)/(2*2^2)) + ...
-%             0.5*exp(-((t_vec-19).^2)/(2*3^2));
-%     elseif user_type == 2  % Commercial user: daytime peak
-%         pattern = 0.5 + 0.5*sin(2*pi*(t_vec-12)/24) + ...
-%             0.6*exp(-((t_vec-14).^2)/(2*4^2));
-%     else  % Industrial user: relatively stable
-%         pattern = 0.8 + 0.2*sin(2*pi*(t_vec)/24);
-%     end
-% 
-%     D(i, :) = base_load(user_type) * pattern + 0.2*randn(1, T);
-%     D(i, :) = max(0.1, D(i, :)); % Ensure non-negative
-% end 
-% PV = zeros(1, T);
-% daylight_hours = 6:19; % Daylight hours
-% sun_power = 25*3; % Peak PV power
-% PV(daylight_hours) = sun_power * sin(pi*(daylight_hours-6)/(19-6)).^2;
-% PV = PV + 2*randn(1, T); % Add noise
-% PV = max(0, PV); % Ensure non-negative
-% end
+PV = PV + min(0, 2*randn(1, T)); % Add noise
+PV = max(0, PV)/max(PV)*2*max(D); % Ensure non-negative
+end 
 
 function [D, PV] = generationC(n, T) 
-
 % Generate user baseline demand
-
 load('load_data.mat')
-
 D=industrial_load(25:48)/10; 
-
 PV = zeros(1, T);
 daylight_hours = 6:19; % Daylight hours
 sun_power = 25*3; % Peak PV power
 PV(daylight_hours) = sun_power * sin(pi*(daylight_hours-6)/(19-6)).^2;
- 
-
 PV = PV + min(0, 2*randn(1, T)); % Add noise
-
 %PV = max(0, PV)/max(PV)*2*max(D); % Ensure non-negative
 PV = max(0, PV); % Ensure non-negative 
 end
